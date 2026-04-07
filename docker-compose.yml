@@ -20,6 +20,9 @@ services:
     #   dockerfile: "./docker/Dockerfile.custom"
     restart: unless-stopped
     container_name: freqtrade
+    user: "0:0"
+    volumes:
+      - "ft_data:/freqtrade/persist"
     # Expose api on port 8080 (localhost only)
     # Please read the https://www.freqtrade.io/en/stable/rest-api/ documentation
     # for more information.
@@ -38,10 +41,13 @@ services:
       - -c
       - |
         set -e
-        mkdir -p /tmp/user_data/logs
+        UD=/freqtrade/persist/user_data
+        REPORTS=/freqtrade/persist/reports
+        TS=$(date +%Y%m%d-%H%M%S)
+        mkdir -p "$UD/logs" "$REPORTS"
 
-        freqtrade new-strategy --strategy SampleStrategy --template minimal --userdir /tmp/user_data >/tmp/new-strategy.log 2>&1 || true
-        freqtrade new-strategy --strategy FreqaiSpotStrategy --template freqai --userdir /tmp/user_data >/tmp/new-freqai.log 2>&1 || true
+        freqtrade new-strategy --strategy SampleStrategy --template minimal --userdir "$UD" >/tmp/new-strategy.log 2>&1 || true
+        freqtrade new-strategy --strategy FreqaiSpotStrategy --template freqai --userdir "$UD" >/tmp/new-freqai.log 2>&1 || true
 
         cat >/tmp/base-config.json <<'JSON'
         {
@@ -198,16 +204,16 @@ services:
 
         if [ "$FT_MODE" = "trade" ]; then
           exec freqtrade trade \
-            --user-data-dir /tmp/user_data \
-            --logfile /tmp/user_data/logs/freqtrade.log \
-            --db-url sqlite:////tmp/user_data/tradesv3.sqlite \
+            --user-data-dir "$UD" \
+            --logfile "$UD/logs/freqtrade.log" \
+            --db-url sqlite:////freqtrade/persist/user_data/tradesv3.sqlite \
             --config /tmp/base-config.json \
             --strategy SampleStrategy
         fi
 
         if [ "$FT_MODE" = "download" ]; then
           exec freqtrade download-data \
-            --user-data-dir /tmp/user_data \
+            --user-data-dir "$UD" \
             --exchange binance \
             --timeframes $FT_TIMEFRAMES \
             --days "$FT_DAYS" \
@@ -216,47 +222,56 @@ services:
 
         if [ "$FT_MODE" = "backtest" ]; then
           freqtrade download-data \
-            --user-data-dir /tmp/user_data \
+            --user-data-dir "$UD" \
             --exchange binance \
             --timeframes $FT_TIMEFRAMES \
             --days "$FT_DAYS" \
             --pairs $FT_PAIRS
-          exec freqtrade backtesting \
-            --user-data-dir /tmp/user_data \
+          freqtrade backtesting \
+            --user-data-dir "$UD" \
             --config /tmp/base-config.json \
             --strategy SampleStrategy \
             --timeframe 5m \
-            --timerange "$FT_TIMERANGE"
+            --timerange "$FT_TIMERANGE" \
+            --export trades | tee "$REPORTS/backtest-$TS.log"
+          echo "Backtest completed at $TS. Review: $REPORTS/backtest-$TS.log" | tee "$REPORTS/recommendation-latest.txt"
+          exit 0
         fi
 
         if [ "$FT_MODE" = "hyperopt" ]; then
           freqtrade download-data \
-            --user-data-dir /tmp/user_data \
+            --user-data-dir "$UD" \
             --exchange binance \
             --timeframes $FT_TIMEFRAMES \
             --days "$FT_DAYS" \
             --pairs $FT_PAIRS
-          exec freqtrade hyperopt \
-            --user-data-dir /tmp/user_data \
+          freqtrade hyperopt \
+            --user-data-dir "$UD" \
             --config /tmp/base-config.json \
             --strategy SampleStrategy \
             --spaces buy sell roi stoploss \
             --epochs "$FT_HYPEROPT_EPOCHS" \
             --timeframe 5m \
-            --timerange "$FT_TIMERANGE"
+            --timerange "$FT_TIMERANGE" | tee "$REPORTS/hyperopt-$TS.log"
+          freqtrade hyperopt-list \
+            --user-data-dir "$UD" \
+            --config /tmp/base-config.json \
+            --best --print-json > "$REPORTS/hyperopt-best-$TS.json" || true
+          echo "Hyperopt completed at $TS. Review logs: $REPORTS/hyperopt-$TS.log and best params: $REPORTS/hyperopt-best-$TS.json" | tee "$REPORTS/recommendation-latest.txt"
+          exit 0
         fi
 
         if [ "$FT_MODE" = "freqai" ]; then
           freqtrade download-data \
-            --user-data-dir /tmp/user_data \
+            --user-data-dir "$UD" \
             --exchange binance \
             --timeframes $FT_TIMEFRAMES \
             --days "$FT_DAYS" \
             --pairs $FT_PAIRS
           exec freqtrade trade \
-            --user-data-dir /tmp/user_data \
-            --logfile /tmp/user_data/logs/freqtrade.log \
-            --db-url sqlite:////tmp/user_data/tradesv3.sqlite \
+            --user-data-dir "$UD" \
+            --logfile "$UD/logs/freqtrade.log" \
+            --db-url sqlite:////freqtrade/persist/user_data/tradesv3.sqlite \
             --config /tmp/freqai-config.json \
             --strategy FreqaiSpotStrategy \
             --freqaimodel LightGBMRegressor
@@ -265,3 +280,6 @@ services:
         echo "Unknown FT_MODE: $FT_MODE"
         echo "Use one of: trade, download, backtest, hyperopt, freqai"
         exit 1
+
+volumes:
+  ft_data:
