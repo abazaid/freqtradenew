@@ -33,10 +33,10 @@ services:
       - -c
       - >
         mkdir -p /freqtrade/user_data &&
-        if [ -d /freqtrade/user_data/config.json ]; then rm -rf /freqtrade/user_data/config.json; fi &&
-        cp -f /freqtrade/config_examples/config_binance.example.json /freqtrade/user_data/config.json &&
+        mkdir -p /freqtrade/user_data/logs &&
+        cp -f /freqtrade/config_examples/config_binance.example.json /tmp/config.json &&
         exec freqtrade trade
         --logfile /freqtrade/user_data/logs/freqtrade.log
         --db-url sqlite:////freqtrade/user_data/tradesv3.sqlite
-        --config /freqtrade/user_data/config.json
+        --config /tmp/config.json
         --strategy SampleStrategy
