@@ -20,8 +20,6 @@ services:
     #   dockerfile: "./docker/Dockerfile.custom"
     restart: unless-stopped
     container_name: freqtrade
-    volumes:
-      - "./user_data:/freqtrade/user_data"
     # Expose api on port 8080 (localhost only)
     # Please read the https://www.freqtrade.io/en/stable/rest-api/ documentation
     # for more information.
@@ -32,11 +30,10 @@ services:
     command:
       - -c
       - >
-        mkdir -p /freqtrade/user_data &&
-        mkdir -p /freqtrade/user_data/logs &&
-        cp -f /freqtrade/config_examples/config_binance.example.json /tmp/config.json &&
+        mkdir -p /tmp/user_data/logs &&
         exec freqtrade trade
-        --logfile /freqtrade/user_data/logs/freqtrade.log
-        --db-url sqlite:////freqtrade/user_data/tradesv3.sqlite
-        --config /tmp/config.json
+        --user-data-dir /tmp/user_data
+        --logfile /tmp/user_data/logs/freqtrade.log
+        --db-url sqlite:////tmp/user_data/tradesv3.sqlite
+        --config /freqtrade/coolify-config.json
         --strategy SampleStrategy
