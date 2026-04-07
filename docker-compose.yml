@@ -45,30 +45,28 @@ services:
         REPORTS=/freqtrade/persist/reports
         TS=$$(date +%Y%m%d-%H%M%S)
         mkdir -p "$$UD/logs" "$$REPORTS"
-        FT_BIN_CAND=$$(command -v freqtrade || true)
         FT_BIN=""
-        FT_PY=""
+        for cand in /freqtrade/.venv/bin/freqtrade /usr/local/bin/freqtrade freqtrade; do
+          if command -v "$$cand" >/dev/null 2>&1; then
+            real_cand=$$(command -v "$$cand")
+            if "$$real_cand" -V >/dev/null 2>&1; then
+              FT_BIN="$$real_cand"
+              break
+            fi
+          elif [ -x "$$cand" ] && "$$cand" -V >/dev/null 2>&1; then
+            FT_BIN="$$cand"
+            break
+          fi
+        done
 
-        if [ -n "$$FT_BIN_CAND" ] && "$$FT_BIN_CAND" -V >/dev/null 2>&1; then
-          FT_BIN="$$FT_BIN_CAND"
-        elif command -v python3 >/dev/null 2>&1 && python3 -c 'import freqtrade' >/dev/null 2>&1; then
-          FT_PY="python3"
-        elif command -v python >/dev/null 2>&1 && python -c 'import freqtrade' >/dev/null 2>&1; then
-          FT_PY="python"
-        elif [ -x /freqtrade/.venv/bin/python ] && /freqtrade/.venv/bin/python -c 'import freqtrade' >/dev/null 2>&1; then
-          FT_PY="/freqtrade/.venv/bin/python"
-        else
-          echo "FATAL: No working freqtrade runtime found."
-          echo "Detected freqtrade launcher: $$FT_BIN_CAND"
+        if [ -z "$$FT_BIN" ]; then
+          echo "FATAL: No working freqtrade binary found (rapidjson/env mismatch)."
+          echo "Tried: /freqtrade/.venv/bin/freqtrade, /usr/local/bin/freqtrade, freqtrade"
           exit 1
         fi
 
         ft() {
-          if [ -n "$$FT_BIN" ]; then
-            "$$FT_BIN" "$$@"
-          else
-            "$$FT_PY" -m freqtrade "$$@"
-          fi
+          "$$FT_BIN" "$$@"
         }
 
         ft new-strategy --strategy SampleStrategy --template minimal --userdir "$$UD" >/tmp/new-strategy.log 2>&1 || true
