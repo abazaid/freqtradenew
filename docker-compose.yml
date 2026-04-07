@@ -45,9 +45,13 @@ services:
         REPORTS=/freqtrade/persist/reports
         TS=$$(date +%Y%m%d-%H%M%S)
         mkdir -p "$$UD/logs" "$$REPORTS"
+        FT_BIN=$$(command -v freqtrade || true)
+        if [ -z "$$FT_BIN" ]; then
+          FT_BIN="python3 -m freqtrade"
+        fi
 
-        /usr/local/bin/freqtrade new-strategy --strategy SampleStrategy --template minimal --userdir "$$UD" >/tmp/new-strategy.log 2>&1 || true
-        /usr/local/bin/freqtrade new-strategy --strategy FreqaiSpotStrategy --template freqai --userdir "$$UD" >/tmp/new-freqai.log 2>&1 || true
+        $$FT_BIN new-strategy --strategy SampleStrategy --template minimal --userdir "$$UD" >/tmp/new-strategy.log 2>&1 || true
+        $$FT_BIN new-strategy --strategy FreqaiSpotStrategy --template freqai --userdir "$$UD" >/tmp/new-freqai.log 2>&1 || true
 
         cat >/tmp/base-config.json <<'JSON'
         {
@@ -203,7 +207,7 @@ services:
         JSON
 
         if [ "$$FT_MODE" = "trade" ]; then
-          exec /usr/local/bin/freqtrade trade \
+          exec $$FT_BIN trade \
             --user-data-dir "$$UD" \
             --logfile "$$UD/logs/freqtrade.log" \
             --db-url sqlite:////freqtrade/persist/user_data/tradesv3.sqlite \
@@ -212,7 +216,7 @@ services:
         fi
 
         if [ "$$FT_MODE" = "download" ]; then
-          exec /usr/local/bin/freqtrade download-data \
+          exec $$FT_BIN download-data \
             --user-data-dir "$$UD" \
             --exchange binance \
             --timeframes $$FT_TIMEFRAMES \
@@ -221,13 +225,13 @@ services:
         fi
 
         if [ "$$FT_MODE" = "backtest" ]; then
-          /usr/local/bin/freqtrade download-data \
+          $$FT_BIN download-data \
             --user-data-dir "$$UD" \
             --exchange binance \
             --timeframes $$FT_TIMEFRAMES \
             --days "$$FT_DAYS" \
             --pairs $$FT_PAIRS
-          /usr/local/bin/freqtrade backtesting \
+          $$FT_BIN backtesting \
             --user-data-dir "$$UD" \
             --config /tmp/base-config.json \
             --strategy SampleStrategy \
@@ -239,13 +243,13 @@ services:
         fi
 
         if [ "$$FT_MODE" = "hyperopt" ]; then
-          /usr/local/bin/freqtrade download-data \
+          $$FT_BIN download-data \
             --user-data-dir "$$UD" \
             --exchange binance \
             --timeframes $$FT_TIMEFRAMES \
             --days "$$FT_DAYS" \
             --pairs $$FT_PAIRS
-          /usr/local/bin/freqtrade hyperopt \
+          $$FT_BIN hyperopt \
             --user-data-dir "$$UD" \
             --config /tmp/base-config.json \
             --strategy SampleStrategy \
@@ -253,7 +257,7 @@ services:
             --epochs "$$FT_HYPEROPT_EPOCHS" \
             --timeframe 5m \
             --timerange "$$FT_TIMERANGE" | tee "$$REPORTS/hyperopt-$$TS.log"
-          /usr/local/bin/freqtrade hyperopt-list \
+          $$FT_BIN hyperopt-list \
             --user-data-dir "$$UD" \
             --config /tmp/base-config.json \
             --best --print-json > "$$REPORTS/hyperopt-best-$$TS.json" || true
@@ -262,13 +266,13 @@ services:
         fi
 
         if [ "$$FT_MODE" = "freqai" ]; then
-          /usr/local/bin/freqtrade download-data \
+          $$FT_BIN download-data \
             --user-data-dir "$$UD" \
             --exchange binance \
             --timeframes $$FT_TIMEFRAMES \
             --days "$$FT_DAYS" \
             --pairs $$FT_PAIRS
-          exec /usr/local/bin/freqtrade trade \
+          exec $$FT_BIN trade \
             --user-data-dir "$$UD" \
             --logfile "$$UD/logs/freqtrade.log" \
             --db-url sqlite:////freqtrade/persist/user_data/tradesv3.sqlite \
