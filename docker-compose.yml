@@ -31,9 +31,10 @@ services:
       - -c
       - >
         mkdir -p /tmp/user_data/logs &&
+        cp -f /freqtrade/config_examples/config_binance.example.json /tmp/coolify-config.json &&
         exec freqtrade trade
         --user-data-dir /tmp/user_data
         --logfile /tmp/user_data/logs/freqtrade.log
         --db-url sqlite:////tmp/user_data/tradesv3.sqlite
-        --config /freqtrade/coolify-config.json
+        --config /tmp/coolify-config.json
         --strategy SampleStrategy
