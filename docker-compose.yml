@@ -43,15 +43,15 @@ services:
         set -e
         UD=/freqtrade/persist/user_data
         REPORTS=/freqtrade/persist/reports
-        TS=$(date +%Y%m%d-%H%M%S)
-        mkdir -p "$UD/logs" "$REPORTS"
+        TS=$$(date +%Y%m%d-%H%M%S)
+        mkdir -p "$$UD/logs" "$$REPORTS"
 
-        freqtrade new-strategy --strategy SampleStrategy --template minimal --userdir "$UD" >/tmp/new-strategy.log 2>&1 || true
-        freqtrade new-strategy --strategy FreqaiSpotStrategy --template freqai --userdir "$UD" >/tmp/new-freqai.log 2>&1 || true
+        freqtrade new-strategy --strategy SampleStrategy --template minimal --userdir "$$UD" >/tmp/new-strategy.log 2>&1 || true
+        freqtrade new-strategy --strategy FreqaiSpotStrategy --template freqai --userdir "$$UD" >/tmp/new-freqai.log 2>&1 || true
 
         cat >/tmp/base-config.json <<'JSON'
         {
-          "$schema": "https://schema.freqtrade.io/schema.json",
+          "$$schema": "https://schema.freqtrade.io/schema.json",
           "max_open_trades": 10,
           "stake_currency": "USDT",
           "stake_amount": 30,
@@ -129,7 +129,7 @@ services:
 
         cat >/tmp/freqai-config.json <<'JSON'
         {
-          "$schema": "https://schema.freqtrade.io/schema.json",
+          "$$schema": "https://schema.freqtrade.io/schema.json",
           "max_open_trades": 5,
           "stake_currency": "USDT",
           "stake_amount": 30,
@@ -202,82 +202,82 @@ services:
         }
         JSON
 
-        if [ "$FT_MODE" = "trade" ]; then
+        if [ "$$FT_MODE" = "trade" ]; then
           exec freqtrade trade \
-            --user-data-dir "$UD" \
-            --logfile "$UD/logs/freqtrade.log" \
+            --user-data-dir "$$UD" \
+            --logfile "$$UD/logs/freqtrade.log" \
             --db-url sqlite:////freqtrade/persist/user_data/tradesv3.sqlite \
             --config /tmp/base-config.json \
             --strategy SampleStrategy
         fi
 
-        if [ "$FT_MODE" = "download" ]; then
+        if [ "$$FT_MODE" = "download" ]; then
           exec freqtrade download-data \
-            --user-data-dir "$UD" \
+            --user-data-dir "$$UD" \
             --exchange binance \
-            --timeframes $FT_TIMEFRAMES \
-            --days "$FT_DAYS" \
-            --pairs $FT_PAIRS
+            --timeframes $$FT_TIMEFRAMES \
+            --days "$$FT_DAYS" \
+            --pairs $$FT_PAIRS
         fi
 
-        if [ "$FT_MODE" = "backtest" ]; then
+        if [ "$$FT_MODE" = "backtest" ]; then
           freqtrade download-data \
-            --user-data-dir "$UD" \
+            --user-data-dir "$$UD" \
             --exchange binance \
-            --timeframes $FT_TIMEFRAMES \
-            --days "$FT_DAYS" \
-            --pairs $FT_PAIRS
+            --timeframes $$FT_TIMEFRAMES \
+            --days "$$FT_DAYS" \
+            --pairs $$FT_PAIRS
           freqtrade backtesting \
-            --user-data-dir "$UD" \
+            --user-data-dir "$$UD" \
             --config /tmp/base-config.json \
             --strategy SampleStrategy \
             --timeframe 5m \
-            --timerange "$FT_TIMERANGE" \
-            --export trades | tee "$REPORTS/backtest-$TS.log"
-          echo "Backtest completed at $TS. Review: $REPORTS/backtest-$TS.log" | tee "$REPORTS/recommendation-latest.txt"
+            --timerange "$$FT_TIMERANGE" \
+            --export trades | tee "$$REPORTS/backtest-$$TS.log"
+          echo "Backtest completed at $$TS. Review: $$REPORTS/backtest-$$TS.log" | tee "$$REPORTS/recommendation-latest.txt"
           exit 0
         fi
 
-        if [ "$FT_MODE" = "hyperopt" ]; then
+        if [ "$$FT_MODE" = "hyperopt" ]; then
           freqtrade download-data \
-            --user-data-dir "$UD" \
+            --user-data-dir "$$UD" \
             --exchange binance \
-            --timeframes $FT_TIMEFRAMES \
-            --days "$FT_DAYS" \
-            --pairs $FT_PAIRS
+            --timeframes $$FT_TIMEFRAMES \
+            --days "$$FT_DAYS" \
+            --pairs $$FT_PAIRS
           freqtrade hyperopt \
-            --user-data-dir "$UD" \
+            --user-data-dir "$$UD" \
             --config /tmp/base-config.json \
             --strategy SampleStrategy \
             --spaces buy sell roi stoploss \
-            --epochs "$FT_HYPEROPT_EPOCHS" \
+            --epochs "$$FT_HYPEROPT_EPOCHS" \
             --timeframe 5m \
-            --timerange "$FT_TIMERANGE" | tee "$REPORTS/hyperopt-$TS.log"
+            --timerange "$$FT_TIMERANGE" | tee "$$REPORTS/hyperopt-$$TS.log"
           freqtrade hyperopt-list \
-            --user-data-dir "$UD" \
+            --user-data-dir "$$UD" \
             --config /tmp/base-config.json \
-            --best --print-json > "$REPORTS/hyperopt-best-$TS.json" || true
-          echo "Hyperopt completed at $TS. Review logs: $REPORTS/hyperopt-$TS.log and best params: $REPORTS/hyperopt-best-$TS.json" | tee "$REPORTS/recommendation-latest.txt"
+            --best --print-json > "$$REPORTS/hyperopt-best-$$TS.json" || true
+          echo "Hyperopt completed at $$TS. Review logs: $$REPORTS/hyperopt-$$TS.log and best params: $$REPORTS/hyperopt-best-$$TS.json" | tee "$$REPORTS/recommendation-latest.txt"
           exit 0
         fi
 
-        if [ "$FT_MODE" = "freqai" ]; then
+        if [ "$$FT_MODE" = "freqai" ]; then
           freqtrade download-data \
-            --user-data-dir "$UD" \
+            --user-data-dir "$$UD" \
             --exchange binance \
-            --timeframes $FT_TIMEFRAMES \
-            --days "$FT_DAYS" \
-            --pairs $FT_PAIRS
+            --timeframes $$FT_TIMEFRAMES \
+            --days "$$FT_DAYS" \
+            --pairs $$FT_PAIRS
           exec freqtrade trade \
-            --user-data-dir "$UD" \
-            --logfile "$UD/logs/freqtrade.log" \
+            --user-data-dir "$$UD" \
+            --logfile "$$UD/logs/freqtrade.log" \
             --db-url sqlite:////freqtrade/persist/user_data/tradesv3.sqlite \
             --config /tmp/freqai-config.json \
             --strategy FreqaiSpotStrategy \
             --freqaimodel LightGBMRegressor
         fi
 
-        echo "Unknown FT_MODE: $FT_MODE"
+        echo "Unknown FT_MODE: $$FT_MODE"
         echo "Use one of: trade, download, backtest, hyperopt, freqai"
         exit 1
 
