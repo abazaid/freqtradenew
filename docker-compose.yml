@@ -31,6 +31,7 @@ services:
       - -c
       - >
         mkdir -p /tmp/user_data/logs &&
+        freqtrade new-strategy --strategy SampleStrategy --template minimal --userdir /tmp/user_data >/tmp/new-strategy.log 2>&1 || true &&
         cp -f /freqtrade/config_examples/config_binance.example.json /tmp/coolify-config.json &&
         exec freqtrade trade
         --user-data-dir /tmp/user_data
